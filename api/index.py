@@ -19,8 +19,8 @@ TWILIO_PHONE_NUMBER = os.environ.get("TWILIO_PHONE_NUMBER", "")
 BASE_URL = os.environ.get("BASE_URL", "")
 CRON_SECRET = os.environ.get("CRON_SECRET", "")
 
-SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL", "")
-SUPABASE_KEY = os.environ.get("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "")
+SUPABASE_URL = os.environ.get("SUPABASE_URL", os.environ.get("NEXT_PUBLIC_SUPABASE_URL", ""))
+SUPABASE_KEY = os.environ.get("SUPABASE_ANON_KEY", os.environ.get("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", ""))
 
 # Supabase REST API base
 SUPABASE_REST = f"{SUPABASE_URL}/rest/v1"
