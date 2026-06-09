@@ -16,7 +16,7 @@ CORS(app)
 TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
 TWILIO_PHONE_NUMBER = os.environ.get("TWILIO_PHONE_NUMBER", "")
-BASE_URL = os.environ.get("BASE_URL", "")
+BASE_URL = os.environ.get("BASE_URL", "https://deeagentt.vercel.app")
 CRON_SECRET = os.environ.get("CRON_SECRET", "")
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", os.environ.get("NEXT_PUBLIC_SUPABASE_URL", ""))
