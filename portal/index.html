@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Reminder Agent</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #0f0f11;
+            --surface: #18181c;
+            --surface-hover: #1f1f24;
+            --accent: #7c5cfc;
+            --accent-hover: #6a4be0;
+            --green: #22c97c;
+            --red: #f0595a;
+            --amber: #f5a623;
+            --text: #e4e4e7;
+            --text-muted: #8b8b94;
+            --border: #2a2a30;
+            --radius: 10px;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            z-index: 100;
+        }
+
+        .sidebar-logo {
+            padding: 24px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-logo h1 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .sidebar-logo p {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .sidebar-nav {
+            padding: 16px 12px;
+            flex: 1;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.15s;
+            margin-bottom: 4px;
+        }
+
+        .nav-item:hover {
+            background: var(--surface-hover);
+            color: var(--text);
+        }
+
+        .nav-item.active {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .nav-item svg {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
+
+        .sidebar-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--red);
+        }
+
+        .status-dot.connected {
+            background: var(--green);
+        }
+
+        /* Main */
+        .main {
+            margin-left: 240px;
+            flex: 1;
+            padding: 32px;
+            min-height: 100vh;
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        /* Top bar */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 28px;
+        }
+
+        .top-bar h2 {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .btn {
+            padding: 10px 18px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+            border-radius: 6px;
+        }
+
+        .btn-green {
+            background: rgba(34, 201, 124, 0.15);
+            color: var(--green);
+            border: 1px solid rgba(34, 201, 124, 0.3);
+        }
+
+        .btn-green:hover {
+            background: rgba(34, 201, 124, 0.25);
+        }
+
+        .btn-red {
+            background: rgba(240, 89, 90, 0.15);
+            color: var(--red);
+            border: 1px solid rgba(240, 89, 90, 0.3);
+        }
+
+        .btn-red:hover {
+            background: rgba(240, 89, 90, 0.25);
+        }
+
+        /* Stats */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+        }
+
+        .stat-card .label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .stat-card .value.amber { color: var(--amber); }
+        .stat-card .value.green { color: var(--green); }
+        .stat-card .value.red { color: var(--red); }
+
+        /* Table */
+        .table-container {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 14px 16px;
+            text-align: left;
+            font-size: 13px;
+        }
+
+        th {
+            background: var(--bg);
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 11px;
+        }
+
+        tr {
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:last-child {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: var(--surface-hover);
+        }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-pending {
+            background: rgba(245, 166, 35, 0.15);
+            color: var(--amber);
+        }
+
+        .badge-called {
+            background: rgba(34, 201, 124, 0.15);
+            color: var(--green);
+        }
+
+        .badge-failed {
+            background: rgba(240, 89, 90, 0.15);
+            color: var(--red);
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .empty-state {
+            padding: 60px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .empty-state p {
+            margin-top: 8px;
+            font-size: 14px;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal h3 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            border-color: var(--accent);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-group .hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .preview {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 24px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+
+        .btn-ghost:hover {
+            background: var(--surface-hover);
+            color: var(--text);
+        }
+
+        /* Settings */
+        .settings-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 28px;
+            max-width: 600px;
+        }
+
+        .settings-card h4 {
+            font-size: 16px;
+            margin-bottom: 16px;
+        }
+
+        .settings-card .form-group {
+            margin-bottom: 16px;
+        }
+
+        .instructions {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-top: 24px;
+            max-width: 600px;
+        }
+
+        .instructions h4 {
+            font-size: 16px;
+            margin-bottom: 12px;
+        }
+
+        .instructions ol {
+            padding-left: 20px;
+        }
+
+        .instructions li {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+
+        .instructions code {
+            background: var(--surface);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: var(--accent);
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .toast {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 18px;
+            font-size: 13px;
+            animation: slideIn 0.3s ease;
+            max-width: 320px;
+        }
+
+        .toast.success {
+            border-color: var(--green);
+            color: var(--green);
+        }
+
+        .toast.error {
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @media (max-width: 900px) {
+            .stats-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <h1>📞 VoiceRemind</h1>
+            <p>Automated call reminders</p>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-item active" data-page="reminders">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+                </svg>
+                Reminders
+            </div>
+            <div class="nav-item" data-page="settings">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                Settings
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <span class="status-dot" id="statusDot"></span>
+            <span id="statusText">Checking...</span>
+        </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main">
+        <!-- Reminders Page -->
+        <div class="page active" id="page-reminders">
+            <div class="top-bar">
+                <h2>Reminders</h2>
+                <button class="btn btn-primary" onclick="openModal()">+ New Reminder</button>
+            </div>
+
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="label">Total</div>
+                    <div class="value" id="stat-total">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Pending</div>
+                    <div class="value amber" id="stat-pending">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Called</div>
+                    <div class="value green" id="stat-called">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Failed</div>
+                    <div class="value red" id="stat-failed">0</div>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Person</th>
+                            <th>Phone</th>
+                            <th>Message</th>
+                            <th>Scheduled</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reminders-body">
+                    </tbody>
+                </table>
+                <div class="empty-state" id="empty-state" style="display:none;">
+                    <p>📭 No reminders yet</p>
+                    <p>Click "New Reminder" to schedule your first call</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Page -->
+        <div class="page" id="page-settings">
+            <div class="top-bar">
+                <h2>Settings</h2>
+            </div>
+
+            <div class="settings-card">
+                <h4>API Connection</h4>
+                <div class="form-group">
+                    <label>API URL</label>
+                    <input type="text" id="api-url-input" placeholder="http://localhost:5000">
+                    <div class="hint">The URL where your Flask backend is running</div>
+                </div>
+                <button class="btn btn-primary" onclick="saveSettings()">Save & Test Connection</button>
+            </div>
+
+            <div class="instructions">
+                <h4>Setup Instructions</h4>
+                <ol>
+                    <li>Install dependencies: <code>pip install -r requirements.txt</code></li>
+                    <li>Sign up at <code>twilio.com</code> (free trial = 75 mins of calls, no credit card needed)</li>
+                    <li>Set environment variables:
+                        <br><code>export TWILIO_ACCOUNT_SID=your_sid</code>
+                        <br><code>export TWILIO_AUTH_TOKEN=your_token</code>
+                        <br><code>export TWILIO_PHONE_NUMBER=+1234567890</code>
+                        <br><code>export BASE_URL=https://your-ngrok-url.ngrok.io</code>
+                    </li>
+                    <li>Install ngrok and run: <code>ngrok http 5000</code></li>
+                    <li>Set <code>BASE_URL</code> to the ngrok HTTPS URL</li>
+                    <li>Start the server: <code>python app.py</code></li>
+                    <li>Open this file in your browser</li>
+                </ol>
+            </div>
+        </div>
+    </main>
+
+    <!-- New Reminder Modal -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal">
+            <h3>New Reminder</h3>
+            <div class="form-group">
+                <label>Name</label>
+                <input type="text" id="form-name" placeholder="John Doe" oninput="updatePreview()">
+            </div>
+            <div class="form-group">
+                <label>Phone</label>
+                <input type="tel" id="form-phone" placeholder="+919515320303">
+                <div class="hint">Include country code, e.g. +91 for India, +1 for US</div>
+            </div>
+            <div class="form-group">
+                <label>Message</label>
+                <textarea id="form-message" placeholder="Your meeting with the team is in 15 minutes" oninput="updatePreview()"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Date & Time</label>
+                <input type="datetime-local" id="form-datetime">
+            </div>
+            <div class="preview" id="call-preview">
+                📞 "Hello , this is your reminder. . Goodbye!"
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="submitReminder()">Schedule Reminder</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // =====================================================================
+        // State
+        // =====================================================================
+        let API_URL = localStorage.getItem("api_url") || "http://localhost:5000";
+        let reminders = [];
+
+        // =====================================================================
+        // Navigation
+        // =====================================================================
+        document.querySelectorAll(".nav-item").forEach(item => {
+            item.addEventListener("click", () => {
+                document.querySelectorAll(".nav-item").forEach(i => i.classList.remove("active"));
+                item.classList.add("active");
+                const page = item.dataset.page;
+                document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+                document.getElementById(`page-${page}`).classList.add("active");
+            });
+        });
+
+        // =====================================================================
+        // API helpers
+        // =====================================================================
+        async function api(method, path, body = null) {
+            const opts = {
+                method,
+                headers: { "Content-Type": "application/json" }
+            };
+            if (body) opts.body = JSON.stringify(body);
+            const res = await fetch(`${API_URL}${path}`, opts);
+            return res.json();
+        }
+
+        // =====================================================================
+        // Load reminders
+        // =====================================================================
+        async function loadReminders() {
+            try {
+                reminders = await api("GET", "/api/reminders");
+                renderReminders();
+                updateStats();
+            } catch (e) {
+                // silent fail — connection status handles display
+            }
+        }
+
+        function renderReminders() {
+            const tbody = document.getElementById("reminders-body");
+            const empty = document.getElementById("empty-state");
+
+            if (reminders.length === 0) {
+                tbody.innerHTML = "";
+                empty.style.display = "block";
+                return;
+            }
+
+            empty.style.display = "none";
+            tbody.innerHTML = reminders.map(r => `
+                <tr>
+                    <td><strong>${esc(r.name)}</strong></td>
+                    <td>${esc(r.phone)}</td>
+                    <td>${esc(truncate(r.message, 40))}</td>
+                    <td>${formatDate(r.scheduled_at)}</td>
+                    <td><span class="badge badge-${r.status}">${r.status}</span></td>
+                    <td class="actions">
+                        ${r.status === "pending" ? `<button class="btn btn-sm btn-green" onclick="callNow(${r.id})">Call now</button>` : ""}
+                        <button class="btn btn-sm btn-red" onclick="deleteReminder(${r.id})">Delete</button>
+                    </td>
+                </tr>
+            `).join("");
+        }
+
+        function updateStats() {
+            document.getElementById("stat-total").textContent = reminders.length;
+            document.getElementById("stat-pending").textContent = reminders.filter(r => r.status === "pending").length;
+            document.getElementById("stat-called").textContent = reminders.filter(r => r.status === "called").length;
+            document.getElementById("stat-failed").textContent = reminders.filter(r => r.status === "failed").length;
+        }
+
+        // =====================================================================
+        // Actions
+        // =====================================================================
+        async function callNow(id) {
+            try {
+                const res = await api("POST", `/api/reminders/${id}/call-now`);
+                if (res.error) throw new Error(res.error);
+                toast("Call initiated successfully!", "success");
+                loadReminders();
+            } catch (e) {
+                toast(`Call failed: ${e.message}`, "error");
+            }
+        }
+
+        async function deleteReminder(id) {
+            try {
+                await api("DELETE", `/api/reminders/${id}`);
+                toast("Reminder deleted", "success");
+                loadReminders();
+            } catch (e) {
+                toast(`Delete failed: ${e.message}`, "error");
+            }
+        }
+
+        // =====================================================================
+        // Modal
+        // =====================================================================
+        function openModal() {
+            document.getElementById("modal-overlay").classList.add("show");
+            // Default datetime = now + 5 minutes
+            const now = new Date(Date.now() + 5 * 60000);
+            const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+            document.getElementById("form-datetime").value = local.toISOString().slice(0, 16);
+            updatePreview();
+        }
+
+        function closeModal() {
+            document.getElementById("modal-overlay").classList.remove("show");
+            document.getElementById("form-name").value = "";
+            document.getElementById("form-phone").value = "";
+            document.getElementById("form-message").value = "";
+        }
+
+        function updatePreview() {
+            const name = document.getElementById("form-name").value || "[name]";
+            const msg = document.getElementById("form-message").value || "[message]";
+            document.getElementById("call-preview").textContent =
+                `📞 "Hello ${name}, this is your reminder. ${msg}. Goodbye!"`;
+        }
+
+        async function submitReminder() {
+            const name = document.getElementById("form-name").value.trim();
+            const phone = document.getElementById("form-phone").value.trim();
+            const message = document.getElementById("form-message").value.trim();
+            const scheduled_at = document.getElementById("form-datetime").value;
+
+            if (!name || !phone || !message || !scheduled_at) {
+                toast("Please fill in all fields", "error");
+                return;
+            }
+
+            try {
+                const res = await api("POST", "/api/reminders", { name, phone, message, scheduled_at });
+                if (res.error) throw new Error(res.error);
+                toast("Reminder scheduled!", "success");
+                closeModal();
+                loadReminders();
+            } catch (e) {
+                toast(`Error: ${e.message}`, "error");
+            }
+        }
+
+        // =====================================================================
+        // Settings
+        // =====================================================================
+        document.getElementById("api-url-input").value = API_URL;
+
+        async function saveSettings() {
+            const url = document.getElementById("api-url-input").value.trim().replace(/\/$/, "");
+            if (!url) {
+                toast("Please enter a valid URL", "error");
+                return;
+            }
+            API_URL = url;
+            localStorage.setItem("api_url", API_URL);
+
+            try {
+                const res = await fetch(`${API_URL}/api/health`);
+                const data = await res.json();
+                if (data.status === "ok") {
+                    toast("Connected successfully!", "success");
+                    checkHealth();
+                } else {
+                    toast("Unexpected response from server", "error");
+                }
+            } catch (e) {
+                toast("Cannot reach the server", "error");
+            }
+        }
+
+        // =====================================================================
+        // Health check
+        // =====================================================================
+        async function checkHealth() {
+            const dot = document.getElementById("statusDot");
+            const text = document.getElementById("statusText");
+            try {
+                const res = await fetch(`${API_URL}/api/health`);
+                const data = await res.json();
+                if (data.status === "ok") {
+                    dot.classList.add("connected");
+                    text.textContent = "Connected";
+                } else {
+                    throw new Error();
+                }
+            } catch {
+                dot.classList.remove("connected");
+                text.textContent = "Offline";
+            }
+        }
+
+        // =====================================================================
+        // Utilities
+        // =====================================================================
+        function esc(str) {
+            const d = document.createElement("div");
+            d.textContent = str;
+            return d.innerHTML;
+        }
+
+        function truncate(str, len) {
+            return str.length > len ? str.slice(0, len) + "…" : str;
+        }
+
+        function formatDate(dt) {
+            if (!dt) return "—";
+            const d = new Date(dt);
+            return d.toLocaleString(undefined, {
+                month: "short", day: "numeric",
+                hour: "2-digit", minute: "2-digit"
+            });
+        }
+
+        function toast(message, type = "success") {
+            const container = document.getElementById("toast-container");
+            const el = document.createElement("div");
+            el.className = `toast ${type}`;
+            el.textContent = message;
+            container.appendChild(el);
+            setTimeout(() => el.remove(), 4000);
+        }
+
+        // =====================================================================
+        // Init
+        // =====================================================================
+        checkHealth();
+        loadReminders();
+
+        // Auto-refresh reminders every 30s
+        setInterval(loadReminders, 30000);
+
+        // Health check every 15s
+        setInterval(checkHealth, 15000);
+
+        // Close modal on overlay click
+        document.getElementById("modal-overlay").addEventListener("click", (e) => {
+            if (e.target === e.currentTarget) closeModal();
+        });
+    </script>
+</body>
+</html>
