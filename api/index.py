@@ -1,7 +1,7 @@
 import os
 import psycopg2
 import psycopg2.extras
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
@@ -232,7 +232,9 @@ def cron():
     if CRON_SECRET and auth != f"Bearer {CRON_SECRET}":
         return jsonify({"error": "Unauthorized"}), 401
 
-    now = datetime.now().strftime("%Y-%m-%dT%H:%M")
+    # Use IST (UTC+5:30)
+    ist = timezone(timedelta(hours=5, minutes=30))
+    now = datetime.now(ist).strftime("%Y-%m-%dT%H:%M")
     conn = get_db()
     cur = conn.cursor()
     cur.execute(

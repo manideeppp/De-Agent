@@ -79,7 +79,10 @@ def make_call(reminder_id, phone, name):
 
 def check_due_reminders():
     """Run every 60s — find pending reminders that are due and call them."""
-    now = datetime.now().strftime("%Y-%m-%dT%H:%M")
+    # Use IST (UTC+5:30)
+    from datetime import timezone, timedelta as td
+    ist = timezone(td(hours=5, minutes=30))
+    now = datetime.now(ist).strftime("%Y-%m-%dT%H:%M")
     conn = get_db()
     rows = conn.execute(
         "SELECT * FROM reminders WHERE status = 'pending' AND scheduled_at <= ?",
