@@ -1,11 +1,19 @@
 import os
+import ssl
 import sqlite3
 from datetime import datetime, timedelta
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# Load .env from project root (one level up from backend/)
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 from flask import Flask, request, jsonify, Response, send_from_directory
 from flask_cors import CORS
 from apscheduler.schedulers.background import BackgroundScheduler
 from twilio.rest import Client
+from twilio.http.http_client import TwilioHttpClient
 from twilio.twiml.voice_response import VoiceResponse
 
 app = Flask(__name__)
@@ -58,18 +66,30 @@ def row_to_dict(row):
 # Twilio helper
 # ---------------------------------------------------------------------------
 
-def make_call(reminder_id, phone, name):
-    """Place an outbound Twilio call for the given reminder."""
+def make_call(reminder_id, phone, message, name):
+    """Place an outbound Twilio call for the given reminder using inline TwiML."""
     if not phone.startswith("+"):
         phone = "+" + phone
 
-    client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-    twiml_url = f"{BASE_URL}/twiml/{reminder_id}"
+    # Use custom HTTP client to bypass Zscaler SSL interception on corporate network
+    http_client = TwilioHttpClient()
+    http_client.session.verify = False
+    client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, http_client=http_client)
+
+    # Build TwiML inline so no public callback URL is needed
+    twiml_response = VoiceResponse()
+    text = (
+        f"Hello {name}, this is your reminder. "
+        f"{message}. "
+        f"This was an automated reminder call. Goodbye!"
+    )
+    twiml_response.say(text, voice="Polly.Joanna", language="en-US")
+    twiml_response.hangup()
 
     call = client.calls.create(
         to=phone,
         from_=TWILIO_PHONE_NUMBER,
-        url=twiml_url
+        twiml=str(twiml_response)
     )
     return call.sid
 
@@ -92,7 +112,7 @@ def check_due_reminders():
     for row in rows:
         reminder = row_to_dict(row)
         try:
-            make_call(reminder["id"], reminder["phone"], reminder["name"])
+            make_call(reminder["id"], reminder["phone"], reminder["message"], reminder["name"])
             conn.execute("UPDATE reminders SET status = 'called' WHERE id = ?", (reminder["id"],))
             conn.commit()
             print(f"[Scheduler] Called reminder #{reminder['id']} for {reminder['name']}")
@@ -176,7 +196,7 @@ def call_now(reminder_id):
     reminder = row_to_dict(row)
 
     try:
-        call_sid = make_call(reminder["id"], reminder["phone"], reminder["name"])
+        call_sid = make_call(reminder["id"], reminder["phone"], reminder["message"], reminder["name"])
         conn.execute("UPDATE reminders SET status = 'called' WHERE id = ?", (reminder_id,))
         conn.commit()
         conn.close()
